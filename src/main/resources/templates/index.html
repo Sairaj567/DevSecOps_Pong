@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevSecOps Pong Game</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 DevSecOps Pong</h1>
+            <p class="subtitle">Built with Jenkins CI/CD Pipeline</p>
+        </header>
+        
+        <div class="game-container">
+            <div class="score-board">
+                <div class="score player1">
+                    <span class="label">Player 1</span>
+                    <span id="player1-score" class="value">0</span>
+                </div>
+                <div class="score player2">
+                    <span class="label">CPU</span>
+                    <span id="player2-score" class="value">0</span>
+                </div>
+            </div>
+            
+            <canvas id="pongCanvas" width="800" height="500"></canvas>
+            
+            <div class="controls">
+                <button id="startBtn" class="btn btn-primary">Start Game</button>
+                <button id="pauseBtn" class="btn btn-secondary" disabled>Pause</button>
+                <button id="resetBtn" class="btn btn-danger">Reset</button>
+            </div>
+            
+            <div class="instructions">
+                <p>🎯 <strong>Controls:</strong> Use <kbd>W</kbd> / <kbd>S</kbd> or <kbd>↑</kbd> / <kbd>↓</kbd> to move your paddle</p>
+                <p>🏆 First to <strong>10 points</strong> wins!</p>
+            </div>
+        </div>
+        
+        <footer>
+            <div class="pipeline-info">
+                <span class="badge">Spring Boot</span>
+                <span class="badge">Docker</span>
+                <span class="badge">Jenkins</span>
+                <span class="badge">SonarQube</span>
+                <span class="badge">Trivy</span>
+            </div>
+            <p>&copy; 2024 DevSecOps Pipeline Demo</p>
+        </footer>
+    </div>
+    
+    <script th:src="@{/js/pong.js}"></script>
+</body>
+</html>
