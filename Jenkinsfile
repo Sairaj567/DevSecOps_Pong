@@ -16,8 +16,8 @@ pipeline {
         stage('Git Checkout') {
             steps {
                 git branch: 'main', 
-                    credentialsId: 'git-cred', 
-                    url: 'https://github.com/your-username/pong-game.git'
+                    credentialsId: 'git-creds', 
+                    url: 'https://github.com/Sairaj567/DevSecOps_Pong.git'
             }
         }
         
