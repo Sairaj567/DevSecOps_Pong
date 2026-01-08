@@ -49,38 +49,87 @@ let latencyState = {
 // WebSocket Connection
 // ============================================
 let socket = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+let lastGameStateTime = 0;
+const GAME_STATE_THROTTLE = 50; // Send game state max every 50ms
 
 function connectWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/game-ws`;
     
-    socket = new WebSocket(wsUrl);
+    try {
+        socket = new WebSocket(wsUrl);
+    } catch (error) {
+        console.error('WebSocket creation failed:', error);
+        scheduleReconnect();
+        return;
+    }
     
     socket.onopen = () => {
         console.log('WebSocket connected');
+        reconnectAttempts = 0;
         updateConnectionStatus(true);
         startPingLoop();
     };
     
-    socket.onclose = () => {
-        console.log('WebSocket disconnected');
+    socket.onclose = (event) => {
+        console.log('WebSocket disconnected, code:', event.code, 'reason:', event.reason);
         updateConnectionStatus(false);
+        
+        // Try to reconnect if game is running
+        if (gameState.isRunning || gameState.roomCode) {
+            scheduleReconnect();
+        }
     };
     
     socket.onerror = (error) => {
         console.error('WebSocket error:', error);
-        showLobbyError('Connection error. Please try again.');
     };
     
     socket.onmessage = (event) => {
-        handleServerMessage(JSON.parse(event.data));
+        try {
+            handleServerMessage(JSON.parse(event.data));
+        } catch (e) {
+            console.error('Error parsing message:', e);
+        }
     };
+}
+
+function scheduleReconnect() {
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempts++;
+        const delay = Math.min(1000 * reconnectAttempts, 5000);
+        console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts})...`);
+        setTimeout(connectWebSocket, delay);
+    } else {
+        showLobbyError('Connection lost. Please refresh the page.');
+    }
 }
 
 function sendMessage(data) {
     if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(data));
+        try {
+            socket.send(JSON.stringify(data));
+        } catch (e) {
+            console.error('Error sending message:', e);
+        }
     }
+}
+
+// Throttled game state sender for ball sync
+function sendGameState() {
+    const now = Date.now();
+    if (now - lastGameStateTime < GAME_STATE_THROTTLE) return;
+    lastGameStateTime = now;
+    
+    sendMessage({
+        type: 'game_state',
+        ballX: ball.x,
+        ballY: ball.y,
+        ballDx: ball.dx,
+        ballDy: ball.dy
+    });
 }
 
 // ============================================
@@ -275,6 +324,10 @@ const keys = { w: false, s: false, W: false, S: false, ArrowUp: false, ArrowDown
 // Event Listeners
 // ============================================
 document.addEventListener('keydown', (e) => {
+    // Don't capture keys when typing in input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
     if (keys.hasOwnProperty(e.key)) {
         keys[e.key] = true;
         e.preventDefault();
@@ -282,6 +335,10 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('keyup', (e) => {
+    // Don't capture keys when typing in input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
     if (keys.hasOwnProperty(e.key)) {
         keys[e.key] = false;
     }
@@ -496,14 +553,8 @@ function update() {
             resetBall();
         }
         
-        // Sync ball state to player 2
-        sendMessage({
-            type: 'game_state',
-            ballX: ball.x,
-            ballY: ball.y,
-            ballDx: ball.dx,
-            ballDy: ball.dy
-        });
+        // Sync ball state to player 2 (throttled)
+        sendGameState();
     }
 }
 

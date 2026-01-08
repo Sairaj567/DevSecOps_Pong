@@ -37,9 +37,13 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
         try {
             JsonNode json = objectMapper.readTree(message.getPayload());
+            if (json == null || !json.has("type")) {
+                logger.warn("Message missing type field");
+                return;
+            }
             String type = json.get("type").asText();
 
             switch (type) {
@@ -71,8 +75,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     logger.warn("Unknown message type: {}", type);
             }
         } catch (Exception e) {
-            logger.error("Error handling message: {}", e.getMessage());
-            sendError(session, "Invalid message format");
+            logger.error("Error handling message: {} - {}", e.getClass().getSimpleName(), e.getMessage());
+            // Don't rethrow - keep connection alive
         }
     }
 
@@ -187,13 +191,20 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     private void handleGameState(WebSocketSession session, JsonNode json) throws IOException {
         GameRoom room = gameRoomService.getRoomBySession(session.getId());
-        if (room == null) return;
+        if (room == null || !room.isFull()) return;
         
         int playerNumber = room.getPlayerNumber(session.getId());
         
         // Only player 1 controls the ball (authoritative)
         if (playerNumber == 1) {
+            // Validate all required fields exist
+            if (!json.has("ballX") || !json.has("ballY") || !json.has("ballDx") || !json.has("ballDy")) {
+                return;
+            }
+            
             GameState state = room.getGameState();
+            if (state == null) return;
+            
             state.setBallX(json.get("ballX").asDouble());
             state.setBallY(json.get("ballY").asDouble());
             state.setBallDx(json.get("ballDx").asDouble());
@@ -202,6 +213,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             
             // Forward ball state to player 2
             String player2SessionId = room.getPlayer2SessionId();
+            if (player2SessionId == null) return;
+            
             WebSocketSession player2Session = sessions.get(player2SessionId);
             
             if (player2Session != null && player2Session.isOpen()) {
