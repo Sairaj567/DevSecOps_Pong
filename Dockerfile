@@ -1,10 +1,11 @@
 # ============================================
 # Multi-Stage Dockerfile for Spring Boot App
 # Optimized for JDK 17 with Security Best Practices
+# ARM64 Compatible
 # ============================================
 
 # -------------------- STAGE 1: BUILD --------------------
-FROM maven:3.9.6-eclipse-temurin-17-alpine AS builder
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
@@ -23,19 +24,20 @@ RUN mvn clean package -DskipTests && \
     java -Djarmode=layertools -jar target/*.jar extract --destination target/extracted
 
 # -------------------- STAGE 2: RUNTIME --------------------
-FROM eclipse-temurin:17-jre-alpine AS runtime
+FROM eclipse-temurin:17-jre AS runtime
 
 # Security: Create non-root user
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -s /bin/false appuser
 
 WORKDIR /app
 
-# Security: Install security updates
-RUN apk update && \
-    apk upgrade && \
-    apk add --no-cache dumb-init && \
-    rm -rf /var/cache/apk/*
+# Security: Install security updates and dumb-init
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends dumb-init wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy application layers (optimized for caching)
 COPY --from=builder /app/target/extracted/dependencies/ ./
