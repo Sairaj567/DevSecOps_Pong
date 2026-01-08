@@ -24,7 +24,7 @@ class GameApiControllerTest {
         mockMvc.perform(get("/api/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("DevSecOps Pong Game"))
-                .andExpect(jsonPath("$.version").value("3.0.0"))
+                .andExpect(jsonPath("$.version").value("3.1.0"))
                 .andExpect(jsonPath("$.mode").value("Online Multiplayer"))
                 .andExpect(jsonPath("$.status").value("running"));
     }
@@ -35,6 +35,6 @@ class GameApiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.application").value("Pong Game"))
-                .andExpect(jsonPath("$.version").value("3.0.0"));
+                .andExpect(jsonPath("$.version").value("3.1.0"));
     }
 }

@@ -1,5 +1,6 @@
 package com.devsecops.ponggame.websocket;
 
+import com.devsecops.ponggame.config.PrometheusMetricsConfig;
 import com.devsecops.ponggame.model.GameRoom;
 import com.devsecops.ponggame.model.GameState;
 import com.devsecops.ponggame.service.GameRoomService;
@@ -29,6 +30,9 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     @Autowired
     private GameRoomService gameRoomService;
+    
+    @Autowired(required = false)
+    private PrometheusMetricsConfig metricsConfig;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -70,6 +74,15 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     break;
                 case "game_over":
                     handleGameOver(session, json);
+                    break;
+                case "chat":
+                    handleChat(session, json);
+                    break;
+                case "spawn_powerup":
+                    handleSpawnPowerup(session, json);
+                    break;
+                case "collect_powerup":
+                    handleCollectPowerup(session, json);
                     break;
                 default:
                     logger.warn("Unknown message type: {}", type);
@@ -179,6 +192,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         
         room.getGameState().setRunning(true);
         room.getGameState().reset();
+        
+        // Track metrics
+        if (metricsConfig != null) {
+            metricsConfig.incrementGamesStarted();
+        }
         
         // Notify both players
         ObjectNode message = objectMapper.createObjectNode();
@@ -292,6 +310,12 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         int winner = json.get("winner").asInt();
         room.getGameState().setRunning(false);
         
+        // Track metrics
+        if (metricsConfig != null) {
+            metricsConfig.incrementGamesCompleted();
+            metricsConfig.incrementPlayerWin(winner);
+        }
+        
         ObjectNode message = objectMapper.createObjectNode();
         message.put("type", "game_ended");
         message.put("winner", winner);
@@ -300,6 +324,83 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         
         broadcastToRoom(room, message.toString());
         logger.info("Game ended in room {}. Winner: Player {}", room.getRoomCode(), winner);
+    }
+
+    // ============================================
+    // Chat Handler
+    // ============================================
+    private void handleChat(WebSocketSession session, JsonNode json) throws IOException {
+        GameRoom room = gameRoomService.getRoomBySession(session.getId());
+        if (room == null) return;
+        
+        // Track metrics
+        if (metricsConfig != null) {
+            metricsConfig.incrementChatMessages();
+        }
+        
+        String sender = json.has("sender") ? json.get("sender").asText() : "Unknown";
+        String chatMessage = json.has("message") ? json.get("message").asText() : "";
+        
+        // Sanitize message (basic)
+        chatMessage = chatMessage.substring(0, Math.min(chatMessage.length(), 100));
+        
+        // Forward to opponent only (sender already has it)
+        String opponentSessionId = room.getOpponentSessionId(session.getId());
+        if (opponentSessionId != null) {
+            WebSocketSession opponentSession = sessions.get(opponentSessionId);
+            if (opponentSession != null && opponentSession.isOpen()) {
+                ObjectNode response = objectMapper.createObjectNode();
+                response.put("type", "chat_message");
+                response.put("sender", sender);
+                response.put("message", chatMessage);
+                sendMessage(opponentSession, response.toString());
+            }
+        }
+    }
+
+    // ============================================
+    // Power-up Handlers
+    // ============================================
+    private void handleSpawnPowerup(WebSocketSession session, JsonNode json) throws IOException {
+        GameRoom room = gameRoomService.getRoomBySession(session.getId());
+        if (room == null) return;
+        
+        // Only host can spawn power-ups
+        if (room.getPlayerNumber(session.getId()) != 1) return;
+        
+        String powerupType = json.get("powerupType").asText();
+        double x = json.get("x").asDouble();
+        double y = json.get("y").asDouble();
+        long id = json.get("id").asLong();
+        
+        ObjectNode message = objectMapper.createObjectNode();
+        message.put("type", "powerup_spawn");
+        message.put("powerupType", powerupType);
+        message.put("x", x);
+        message.put("y", y);
+        message.put("id", id);
+        
+        broadcastToRoom(room, message.toString());
+    }
+
+    private void handleCollectPowerup(WebSocketSession session, JsonNode json) throws IOException {
+        GameRoom room = gameRoomService.getRoomBySession(session.getId());
+        if (room == null) return;
+        
+        // Track metrics
+        if (metricsConfig != null) {
+            metricsConfig.incrementPowerupsCollected();
+        }
+        
+        int playerNumber = room.getPlayerNumber(session.getId());
+        String powerupType = json.has("powerupType") ? json.get("powerupType").asText() : "SPEED_BOOST";
+        
+        ObjectNode message = objectMapper.createObjectNode();
+        message.put("type", "powerup_collected");
+        message.put("playerNumber", playerNumber);
+        message.put("powerupType", powerupType);
+        
+        broadcastToRoom(room, message.toString());
     }
 
     @Override

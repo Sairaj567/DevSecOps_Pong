@@ -1,6 +1,7 @@
 /**
- * DevSecOps Pong v3.0 - Online Multiplayer
+ * DevSecOps Pong v3.1 - Online Multiplayer
  * WebSocket-based real-time gameplay with latency monitoring
+ * Features: Ball Trail, Power-ups, In-game Chat
  */
 
 // ============================================
@@ -15,12 +16,23 @@ const CONFIG = {
     PADDLE_WIDTH: 12,
     BALL_SIZE: 10,
     PING_INTERVAL: 1000,
+    TRAIL_LENGTH: 12,
+    POWERUP_SPAWN_INTERVAL: 8000,
+    POWERUP_DURATION: 5000,
     COLORS: {
         background: '#000000',
         paddle1: '#00d4ff',
         paddle2: '#e94560',
         ball: '#ffffff',
-        centerLine: '#333333'
+        centerLine: '#333333',
+        trail: ['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.4)', 
+                'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0.1)']
+    },
+    POWERUPS: {
+        SPEED_BOOST: { name: 'Speed Boost', color: '#ffff00', icon: '⚡' },
+        BIG_PADDLE: { name: 'Big Paddle', color: '#00ff00', icon: '📏' },
+        SLOW_BALL: { name: 'Slow Ball', color: '#00ffff', icon: '🐢' },
+        SHRINK_OPPONENT: { name: 'Shrink Enemy', color: '#ff00ff', icon: '🔻' }
     }
 };
 
@@ -44,6 +56,18 @@ let latencyState = {
     opponentLatency: 0,
     lastPingTime: 0
 };
+
+// Ball trail for visual effect
+let ballTrail = [];
+
+// Power-up system
+let activePowerup = null;
+let myPowerups = { speedBoost: false, bigPaddle: false };
+let opponentPowerups = { speedBoost: false, bigPaddle: false };
+let powerupSpawnTimer = null;
+
+// Chat messages
+let chatMessages = [];
 
 // ============================================
 // WebSocket Connection
@@ -167,6 +191,15 @@ function handleServerMessage(data) {
         case 'pong':
             handlePong(data);
             break;
+        case 'powerup_spawn':
+            handlePowerupSpawn(data);
+            break;
+        case 'powerup_collected':
+            handlePowerupCollected(data);
+            break;
+        case 'chat_message':
+            handleChatMessage(data);
+            break;
         case 'error':
             showLobbyError(data.message);
             break;
@@ -215,11 +248,19 @@ function handleGameStarted(data) {
     resetPaddles();
     updateScoreDisplay();
     
+    // Clear power-ups and trail
+    activePowerup = null;
+    ballTrail = [];
+    myPowerups = { speedBoost: false, bigPaddle: false };
+    opponentPowerups = { speedBoost: false, bigPaddle: false };
+    
     document.getElementById('startBtn').disabled = true;
     document.getElementById('startBtn').textContent = 'Playing...';
     document.getElementById('pauseBtn').disabled = false;
     
     if (gameState.isHost) {
+        // Start power-up spawn timer
+        powerupSpawnTimer = setInterval(spawnPowerup, CONFIG.POWERUP_SPAWN_INTERVAL);
         gameLoop();
     } else {
         nonHostLoop();
@@ -283,6 +324,160 @@ function handlePong(data) {
     latencyState.opponentLatency = gameState.playerNumber === 1 ? data.player2Latency : data.player1Latency;
     
     updateLatencyDisplay();
+}
+
+// ============================================
+// Power-up Handlers
+// ============================================
+function handlePowerupSpawn(data) {
+    activePowerup = {
+        type: data.powerupType,
+        x: data.x,
+        y: data.y,
+        id: data.id
+    };
+}
+
+function handlePowerupCollected(data) {
+    activePowerup = null;
+    
+    const isMe = data.playerNumber === gameState.playerNumber;
+    const powerups = isMe ? myPowerups : opponentPowerups;
+    const paddle = data.playerNumber === 1 ? player1 : player2;
+    
+    // Apply power-up effect
+    switch (data.powerupType) {
+        case 'SPEED_BOOST':
+            powerups.speedBoost = true;
+            setTimeout(() => { powerups.speedBoost = false; }, CONFIG.POWERUP_DURATION);
+            break;
+        case 'BIG_PADDLE':
+            powerups.bigPaddle = true;
+            const originalHeight = paddle.height;
+            paddle.height = CONFIG.PADDLE_HEIGHT * 1.5;
+            setTimeout(() => { 
+                powerups.bigPaddle = false; 
+                paddle.height = originalHeight;
+            }, CONFIG.POWERUP_DURATION);
+            break;
+        case 'SLOW_BALL':
+            if (gameState.isHost) {
+                const originalSpeed = ball.speed;
+                ball.speed = CONFIG.BALL_SPEED * 0.5;
+                ball.dx *= 0.5;
+                ball.dy *= 0.5;
+                setTimeout(() => { 
+                    ball.speed = originalSpeed;
+                }, CONFIG.POWERUP_DURATION);
+            }
+            break;
+        case 'SHRINK_OPPONENT':
+            const oppPaddle = data.playerNumber === 1 ? player2 : player1;
+            const oppOriginalHeight = oppPaddle.height;
+            oppPaddle.height = CONFIG.PADDLE_HEIGHT * 0.6;
+            setTimeout(() => { oppPaddle.height = oppOriginalHeight; }, CONFIG.POWERUP_DURATION);
+            break;
+    }
+    
+    // Show notification
+    showPowerupNotification(data.powerupType, isMe);
+}
+
+function showPowerupNotification(type, isMe) {
+    const config = CONFIG.POWERUPS[type];
+    const msg = isMe ? `You got ${config.icon} ${config.name}!` : `Opponent got ${config.icon} ${config.name}!`;
+    
+    // Add to chat as system message
+    addChatMessage('System', msg, true);
+}
+
+function spawnPowerup() {
+    if (!gameState.isHost || !gameState.isRunning || activePowerup) return;
+    
+    const types = Object.keys(CONFIG.POWERUPS);
+    const type = types[Math.floor(Math.random() * types.length)];
+    
+    const x = canvas.width / 4 + Math.random() * canvas.width / 2;
+    const y = 50 + Math.random() * (canvas.height - 100);
+    
+    sendMessage({
+        type: 'spawn_powerup',
+        powerupType: type,
+        x: x,
+        y: y,
+        id: Date.now()
+    });
+}
+
+function checkPowerupCollision() {
+    if (!activePowerup) return;
+    
+    const myPaddle = gameState.playerNumber === 1 ? player1 : player2;
+    
+    // Check if ball hits power-up
+    const dx = ball.x - activePowerup.x;
+    const dy = ball.y - activePowerup.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    
+    if (dist < ball.size + 15) {
+        sendMessage({
+            type: 'collect_powerup',
+            powerupId: activePowerup.id,
+            playerNumber: gameState.playerNumber
+        });
+    }
+}
+
+// ============================================
+// Chat System
+// ============================================
+function handleChatMessage(data) {
+    addChatMessage(data.sender, data.message, false);
+}
+
+function addChatMessage(sender, message, isSystem) {
+    chatMessages.push({ sender, message, isSystem, time: Date.now() });
+    
+    // Keep only last 50 messages
+    if (chatMessages.length > 50) {
+        chatMessages.shift();
+    }
+    
+    updateChatDisplay();
+}
+
+function updateChatDisplay() {
+    const chatBox = document.getElementById('chat-messages');
+    if (!chatBox) return;
+    
+    chatBox.innerHTML = '';
+    chatMessages.slice(-10).forEach(msg => {
+        const div = document.createElement('div');
+        div.className = 'chat-message' + (msg.isSystem ? ' system' : '');
+        div.innerHTML = msg.isSystem 
+            ? `<span class="system-msg">${msg.message}</span>`
+            : `<span class="sender">${msg.sender}:</span> ${msg.message}`;
+        chatBox.appendChild(div);
+    });
+    
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function sendChatMessage() {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    
+    const message = input.value.trim();
+    if (!message) return;
+    
+    sendMessage({
+        type: 'chat',
+        message: message,
+        sender: gameState.myName
+    });
+    
+    addChatMessage(gameState.myName, message, false);
+    input.value = '';
 }
 
 // ============================================
@@ -354,6 +549,14 @@ document.getElementById('copyCodeBtn').addEventListener('click', copyRoomCode);
 document.getElementById('startBtn').addEventListener('click', startGame);
 document.getElementById('pauseBtn').addEventListener('click', togglePause);
 document.getElementById('leaveBtn').addEventListener('click', leaveGame);
+
+// Chat - send on button click or Enter key
+document.getElementById('sendChatBtn')?.addEventListener('click', sendChatMessage);
+document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendChatMessage();
+    }
+});
 
 // Room code input - auto uppercase
 document.getElementById('roomCodeInput').addEventListener('input', (e) => {
@@ -507,12 +710,15 @@ function update() {
     const myPaddle = gameState.playerNumber === 1 ? player1 : player2;
     let moved = false;
     
+    // Apply speed boost if active
+    const speed = myPowerups.speedBoost ? CONFIG.PADDLE_SPEED * 1.5 : CONFIG.PADDLE_SPEED;
+    
     if (keys.w || keys.W || keys.ArrowUp) {
-        myPaddle.y -= CONFIG.PADDLE_SPEED;
+        myPaddle.y -= speed;
         moved = true;
     }
     if (keys.s || keys.S || keys.ArrowDown) {
-        myPaddle.y += CONFIG.PADDLE_SPEED;
+        myPaddle.y += speed;
         moved = true;
     }
     
@@ -526,6 +732,9 @@ function update() {
     if (gameState.isHost) {
         ball.x += ball.dx;
         ball.y += ball.dy;
+        
+        // Check power-up collision
+        checkPowerupCollision();
         
         // Wall collision
         if (ball.y - ball.size < 0 || ball.y + ball.size > canvas.height) {
@@ -607,25 +816,117 @@ function draw() {
     ctx.stroke();
     ctx.setLineDash([]);
     
-    // Paddles
-    drawPaddle(player1);
-    drawPaddle(player2);
+    // Draw power-up if active
+    if (activePowerup) {
+        drawPowerup();
+    }
+    
+    // Ball trail effect
+    drawBallTrail();
+    
+    // Paddles (with power-up effects)
+    drawPaddle(player1, 1);
+    drawPaddle(player2, 2);
     
     // Ball
     drawBall();
+    
+    // Active power-up indicator
+    drawPowerupIndicator();
 }
 
-function drawPaddle(paddle) {
-    ctx.fillStyle = paddle.color;
-    ctx.shadowColor = paddle.color;
+function drawBallTrail() {
+    for (let i = 0; i < ballTrail.length; i++) {
+        const pos = ballTrail[i];
+        const alpha = 1 - (i / ballTrail.length);
+        const size = ball.size * (1 - i * 0.05);
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, Math.max(size, 2), 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function drawPowerup() {
+    if (!activePowerup) return;
+    
+    const pu = activePowerup;
+    const config = CONFIG.POWERUPS[pu.type];
+    
+    // Pulsing glow effect
+    const pulse = Math.sin(Date.now() / 200) * 5 + 20;
+    
+    ctx.shadowColor = config.color;
+    ctx.shadowBlur = pulse;
+    ctx.fillStyle = config.color;
+    ctx.beginPath();
+    ctx.arc(pu.x, pu.y, 15, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Icon
+    ctx.shadowBlur = 0;
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000';
+    ctx.fillText(config.icon, pu.x, pu.y);
+}
+
+function drawPowerupIndicator() {
+    const myPaddle = gameState.playerNumber === 1 ? player1 : player2;
+    
+    // Show active power-up near my paddle
+    if (myPowerups.speedBoost) {
+        ctx.fillStyle = '#ffff00';
+        ctx.font = '14px Arial';
+        ctx.fillText('⚡ SPEED', gameState.playerNumber === 1 ? 60 : canvas.width - 60, 20);
+    }
+    if (myPowerups.bigPaddle) {
+        ctx.fillStyle = '#00ff00';
+        ctx.font = '14px Arial';
+        ctx.fillText('📏 BIG', gameState.playerNumber === 1 ? 60 : canvas.width - 60, 40);
+    }
+}
+
+function drawPaddle(paddle, playerNum) {
+    // Apply power-up effects visually
+    const powerups = playerNum === gameState.playerNumber ? myPowerups : opponentPowerups;
+    
+    let height = paddle.height;
+    let color = paddle.color;
+    
+    if (powerups.bigPaddle) {
+        color = '#00ff00';
+    }
+    if (powerups.speedBoost) {
+        // Add speed lines effect
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(paddle.x + paddle.width / 2, paddle.y + 10 + i * 25);
+            ctx.lineTo(paddle.x + paddle.width / 2 + (playerNum === 1 ? -15 : 15), paddle.y + 10 + i * 25);
+            ctx.stroke();
+        }
+    }
+    
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
     ctx.shadowBlur = 15;
     ctx.beginPath();
-    ctx.roundRect(paddle.x, paddle.y, paddle.width, paddle.height, 4);
+    ctx.roundRect(paddle.x, paddle.y, paddle.width, height, 4);
     ctx.fill();
     ctx.shadowBlur = 0;
 }
 
 function drawBall() {
+    // Update trail
+    ballTrail.unshift({ x: ball.x, y: ball.y });
+    if (ballTrail.length > CONFIG.TRAIL_LENGTH) {
+        ballTrail.pop();
+    }
+    
     ctx.fillStyle = CONFIG.COLORS.ball;
     ctx.shadowColor = CONFIG.COLORS.ball;
     ctx.shadowBlur = 12;

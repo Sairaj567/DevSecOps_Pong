@@ -42,12 +42,12 @@ public class GameApiController {
         requestCounter.incrementAndGet();
         Map<String, Object> info = new HashMap<>();
         info.put("name", "DevSecOps Pong Game");
-        info.put("version", "3.0.0");
+        info.put("version", "3.1.0");
         info.put("author", "DevSecOps Team");
         info.put("timestamp", LocalDateTime.now().toString());
         info.put("status", "running");
         info.put("mode", "Online Multiplayer");
-        info.put("features", new String[]{"Room Codes", "Real-time Sync", "Latency Display"});
+        info.put("features", new String[]{"Room Codes", "Ball Trail", "Power-ups", "In-game Chat", "Prometheus Metrics"});
         return ResponseEntity.ok(info);
     }
 
@@ -166,7 +166,7 @@ public class GameApiController {
         Map<String, String> health = new HashMap<>();
         health.put("status", "UP");
         health.put("application", "Pong Game");
-        health.put("version", "3.0.0");
+        health.put("version", "3.1.0");
         health.put("mode", "Online Multiplayer");
         return ResponseEntity.ok(health);
     }
