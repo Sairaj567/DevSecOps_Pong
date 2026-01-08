@@ -3,148 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevSecOps Pong Game - Two Player</title>
+    <title>DevSecOps Pong - Online Multiplayer</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
     <div class="main-container">
         <header>
             <h1>🎮 DevSecOps Pong</h1>
-            <p class="subtitle">Two-Player Mode | Built with Jenkins CI/CD Pipeline</p>
+            <p class="subtitle">Online Multiplayer | Real-Time Latency Monitoring</p>
         </header>
         
-        <div class="layout-container">
-            <!-- Game Section -->
-            <div class="game-section">
-                <div class="game-container">
-                    <div class="score-board">
-                        <div class="score player1">
-                            <span class="label">Player 1 <kbd>W</kbd><kbd>S</kbd></span>
-                            <span id="player1-score" class="value">0</span>
-                        </div>
-                        <div class="vs-divider">VS</div>
-                        <div class="score player2">
-                            <span class="label">Player 2 <kbd>↑</kbd><kbd>↓</kbd></span>
-                            <span id="player2-score" class="value">0</span>
-                        </div>
+        <!-- Room/Lobby Screen -->
+        <div id="lobby-screen" class="screen active">
+            <div class="lobby-container">
+                <h2>🌐 Online Multiplayer</h2>
+                
+                <div class="player-name-input">
+                    <label for="playerName">Your Name:</label>
+                    <input type="text" id="playerName" placeholder="Enter your name" maxlength="15" value="Player">
+                </div>
+                
+                <div class="lobby-options">
+                    <div class="lobby-option">
+                        <h3>Create Room</h3>
+                        <p>Start a new game and invite a friend</p>
+                        <button id="createRoomBtn" class="btn btn-primary">Create Room</button>
                     </div>
                     
-                    <canvas id="pongCanvas" width="800" height="450"></canvas>
+                    <div class="lobby-divider">OR</div>
                     
-                    <div class="controls">
-                        <button id="startBtn" class="btn btn-primary">Start Game</button>
-                        <button id="pauseBtn" class="btn btn-secondary" disabled>Pause</button>
-                        <button id="resetBtn" class="btn btn-danger">Reset</button>
-                    </div>
-                    
-                    <div class="instructions">
-                        <div class="player-controls">
-                            <div class="p1-controls">
-                                <span class="player-label p1">Player 1 (Blue)</span>
-                                <kbd>W</kbd> Up | <kbd>S</kbd> Down
-                            </div>
-                            <div class="p2-controls">
-                                <span class="player-label p2">Player 2 (Red)</span>
-                                <kbd>↑</kbd> Up | <kbd>↓</kbd> Down
-                            </div>
+                    <div class="lobby-option">
+                        <h3>Join Room</h3>
+                        <p>Enter a room code to join</p>
+                        <div class="room-code-input">
+                            <input type="text" id="roomCodeInput" placeholder="XXXX" maxlength="4" style="text-transform: uppercase;">
+                            <button id="joinRoomBtn" class="btn btn-secondary">Join</button>
                         </div>
-                        <p class="win-msg">🏆 First to <strong>10 points</strong> wins!</p>
                     </div>
                 </div>
+                
+                <div id="lobby-status" class="lobby-status"></div>
             </div>
-            
-            <!-- DevOps Metrics Dashboard -->
-            <div class="metrics-section">
-                <div class="metrics-container">
-                    <h2>📊 DevOps Metrics</h2>
-                    <p class="metrics-subtitle">Real-time Server Statistics</p>
-                    
-                    <!-- Latency Card -->
-                    <div class="metric-card latency-card">
-                        <div class="metric-icon">⚡</div>
-                        <div class="metric-content">
-                            <span class="metric-label">API Latency</span>
-                            <span id="latency-value" class="metric-value">--</span>
-                            <span class="metric-unit">ms</span>
-                        </div>
-                        <div id="latency-indicator" class="status-indicator"></div>
-                    </div>
-                    
-                    <!-- Memory Usage Card -->
-                    <div class="metric-card memory-card">
-                        <div class="metric-icon">💾</div>
-                        <div class="metric-content">
-                            <span class="metric-label">Memory Usage</span>
-                            <div class="progress-bar">
-                                <div id="memory-bar" class="progress-fill"></div>
+        </div>
+        
+        <!-- Waiting Room Screen -->
+        <div id="waiting-screen" class="screen">
+            <div class="waiting-container">
+                <h2>⏳ Waiting for Opponent</h2>
+                
+                <div class="room-code-display">
+                    <span class="label">Room Code:</span>
+                    <span id="displayRoomCode" class="code">----</span>
+                    <button id="copyCodeBtn" class="btn-small" title="Copy code">📋</button>
+                </div>
+                
+                <p class="share-msg">Share this code with your friend to play together!</p>
+                
+                <div class="waiting-animation">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+                
+                <button id="cancelWaitBtn" class="btn btn-danger">Cancel</button>
+            </div>
+        </div>
+        
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="layout-container">
+                <!-- Game Section -->
+                <div class="game-section">
+                    <div class="game-container">
+                        <div class="score-board">
+                            <div class="score player1">
+                                <span id="p1-name" class="player-name-label">Player 1</span>
+                                <span id="player1-score" class="value">0</span>
+                                <span id="p1-latency" class="latency-badge">-- ms</span>
                             </div>
-                            <span id="memory-value" class="metric-detail">-- / -- MB</span>
+                            <div class="vs-divider">VS</div>
+                            <div class="score player2">
+                                <span id="p2-name" class="player-name-label">Player 2</span>
+                                <span id="player2-score" class="value">0</span>
+                                <span id="p2-latency" class="latency-badge">-- ms</span>
+                            </div>
                         </div>
-                        <span id="memory-percent" class="metric-percent">--%</span>
-                    </div>
-                    
-                    <!-- CPU Load Card -->
-                    <div class="metric-card cpu-card">
-                        <div class="metric-icon">🖥️</div>
-                        <div class="metric-content">
-                            <span class="metric-label">System Load</span>
-                            <span id="cpu-value" class="metric-value">--</span>
-                            <span id="cpu-cores" class="metric-detail">-- cores</span>
+                        
+                        <div class="room-info-bar">
+                            <span>Room: <strong id="game-room-code">----</strong></span>
+                            <span id="connection-status" class="connection-status connected">● Connected</span>
                         </div>
-                    </div>
-                    
-                    <!-- Uptime Card -->
-                    <div class="metric-card uptime-card">
-                        <div class="metric-icon">⏱️</div>
-                        <div class="metric-content">
-                            <span class="metric-label">Server Uptime</span>
-                            <span id="uptime-value" class="metric-value">--</span>
+                        
+                        <canvas id="pongCanvas" width="800" height="450"></canvas>
+                        
+                        <div class="controls">
+                            <button id="startBtn" class="btn btn-primary" disabled>Waiting...</button>
+                            <button id="pauseBtn" class="btn btn-secondary" disabled>Pause</button>
+                            <button id="leaveBtn" class="btn btn-danger">Leave Game</button>
                         </div>
-                        <div class="status-badge online">ONLINE</div>
-                    </div>
-                    
-                    <!-- Requests Card -->
-                    <div class="metric-card requests-card">
-                        <div class="metric-icon">📈</div>
-                        <div class="metric-content">
-                            <span class="metric-label">Total Requests</span>
-                            <span id="requests-value" class="metric-value">--</span>
+                        
+                        <div class="instructions">
+                            <div class="control-info">
+                                <span id="your-controls">Use <kbd>W</kbd>/<kbd>S</kbd> or <kbd>↑</kbd>/<kbd>↓</kbd> to move</span>
+                            </div>
+                            <p class="win-msg">🏆 First to <strong>10 points</strong> wins!</p>
                         </div>
                     </div>
-                    
-                    <!-- Threads Card -->
-                    <div class="metric-card threads-card">
-                        <div class="metric-icon">🧵</div>
-                        <div class="metric-content">
-                            <span class="metric-label">Active Threads</span>
-                            <span id="threads-value" class="metric-value">--</span>
-                            <span id="threads-peak" class="metric-detail">Peak: --</span>
+                </div>
+                
+                <!-- Metrics Section -->
+                <div class="metrics-section">
+                    <div class="metrics-container">
+                        <h2>📊 DevOps Metrics</h2>
+                        <p class="metrics-subtitle">Real-time Network & Server Stats</p>
+                        
+                        <!-- Player Latency Card -->
+                        <div class="metric-card latency-card highlight">
+                            <div class="metric-icon">🏓</div>
+                            <div class="metric-content">
+                                <span class="metric-label">Your Latency</span>
+                                <span id="my-latency-value" class="metric-value">--</span>
+                                <span class="metric-unit">ms</span>
+                            </div>
+                            <div id="my-latency-indicator" class="status-indicator"></div>
                         </div>
-                    </div>
-                    
-                    <!-- Game Stats Card -->
-                    <div class="metric-card games-card">
-                        <div class="metric-icon">🎯</div>
-                        <div class="metric-content">
-                            <span class="metric-label">Games Played</span>
-                            <span id="games-value" class="metric-value">0</span>
-                            <span id="games-wins" class="metric-detail">P1: 0 | P2: 0</span>
+                        
+                        <!-- Opponent Latency Card -->
+                        <div class="metric-card opponent-latency-card">
+                            <div class="metric-icon">👤</div>
+                            <div class="metric-content">
+                                <span class="metric-label">Opponent Latency</span>
+                                <span id="opponent-latency-value" class="metric-value">--</span>
+                                <span class="metric-unit">ms</span>
+                            </div>
+                            <div id="opponent-latency-indicator" class="status-indicator"></div>
                         </div>
-                    </div>
-                    
-                    <!-- System Info -->
-                    <div class="system-info">
-                        <div class="info-row">
-                            <span class="info-label">OS:</span>
-                            <span id="os-name" class="info-value">--</span>
+                        
+                        <!-- API Latency Card -->
+                        <div class="metric-card api-latency-card">
+                            <div class="metric-icon">⚡</div>
+                            <div class="metric-content">
+                                <span class="metric-label">API Latency</span>
+                                <span id="latency-value" class="metric-value">--</span>
+                                <span class="metric-unit">ms</span>
+                            </div>
+                            <div id="latency-indicator" class="status-indicator"></div>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">Arch:</span>
-                            <span id="os-arch" class="info-value">--</span>
+                        
+                        <!-- Memory Usage Card -->
+                        <div class="metric-card memory-card">
+                            <div class="metric-icon">💾</div>
+                            <div class="metric-content">
+                                <span class="metric-label">Memory Usage</span>
+                                <div class="progress-bar">
+                                    <div id="memory-bar" class="progress-fill"></div>
+                                </div>
+                                <span id="memory-value" class="metric-detail">-- / -- MB</span>
+                            </div>
+                            <span id="memory-percent" class="metric-percent">--%</span>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">JVM:</span>
-                            <span id="jvm-version" class="info-value">--</span>
+                        
+                        <!-- Active Rooms Card -->
+                        <div class="metric-card rooms-card">
+                            <div class="metric-icon">🚪</div>
+                            <div class="metric-content">
+                                <span class="metric-label">Active Rooms</span>
+                                <span id="active-rooms" class="metric-value">0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Connected Players Card -->
+                        <div class="metric-card players-card">
+                            <div class="metric-icon">👥</div>
+                            <div class="metric-content">
+                                <span class="metric-label">Online Players</span>
+                                <span id="online-players" class="metric-value">0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Uptime Card -->
+                        <div class="metric-card uptime-card">
+                            <div class="metric-icon">⏱️</div>
+                            <div class="metric-content">
+                                <span class="metric-label">Server Uptime</span>
+                                <span id="uptime-value" class="metric-value">--</span>
+                            </div>
+                            <div class="status-badge online">ONLINE</div>
+                        </div>
+                        
+                        <!-- System Info -->
+                        <div class="system-info">
+                            <div class="info-row">
+                                <span class="info-label">Version:</span>
+                                <span class="info-value">3.0.0</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Mode:</span>
+                                <span class="info-value">WebSocket</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -154,14 +210,14 @@
         <footer>
             <div class="pipeline-info">
                 <span class="badge">Spring Boot 3.2</span>
+                <span class="badge">WebSocket</span>
                 <span class="badge">Docker</span>
                 <span class="badge">Jenkins</span>
                 <span class="badge">SonarQube</span>
                 <span class="badge">Trivy</span>
                 <span class="badge">Nexus</span>
-                <span class="badge">Prometheus</span>
             </div>
-            <p>&copy; 2026 DevSecOps Pipeline Demo | Two-Player Pong v2.0</p>
+            <p>&copy; 2026 DevSecOps Pipeline Demo | Online Multiplayer Pong v3.0</p>
         </footer>
     </div>
     

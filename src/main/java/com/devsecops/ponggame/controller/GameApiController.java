@@ -1,5 +1,7 @@
 package com.devsecops.ponggame.controller;
 
+import com.devsecops.ponggame.service.GameRoomService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +31,9 @@ public class GameApiController {
     private final AtomicLong player1Wins = new AtomicLong(0);
     private final AtomicLong player2Wins = new AtomicLong(0);
 
+    @Autowired(required = false)
+    private GameRoomService gameRoomService;
+
     /**
      * Get game information
      */
@@ -37,11 +42,12 @@ public class GameApiController {
         requestCounter.incrementAndGet();
         Map<String, Object> info = new HashMap<>();
         info.put("name", "DevSecOps Pong Game");
-        info.put("version", "2.0.0");
+        info.put("version", "3.0.0");
         info.put("author", "DevSecOps Team");
         info.put("timestamp", LocalDateTime.now().toString());
         info.put("status", "running");
-        info.put("mode", "Two-Player");
+        info.put("mode", "Online Multiplayer");
+        info.put("features", new String[]{"Room Codes", "Real-time Sync", "Latency Display"});
         return ResponseEntity.ok(info);
     }
 
@@ -160,7 +166,29 @@ public class GameApiController {
         Map<String, String> health = new HashMap<>();
         health.put("status", "UP");
         health.put("application", "Pong Game");
+        health.put("version", "3.0.0");
+        health.put("mode", "Online Multiplayer");
         return ResponseEntity.ok(health);
+    }
+
+    /**
+     * Get multiplayer room statistics
+     */
+    @GetMapping("/rooms/stats")
+    public ResponseEntity<Map<String, Object>> getRoomStats() {
+        requestCounter.incrementAndGet();
+        Map<String, Object> stats = new HashMap<>();
+        
+        if (gameRoomService != null) {
+            stats.putAll(gameRoomService.getStats());
+        } else {
+            stats.put("activeRooms", 0);
+            stats.put("activeGames", 0);
+            stats.put("connectedPlayers", 0);
+        }
+        
+        stats.put("timestamp", System.currentTimeMillis());
+        return ResponseEntity.ok(stats);
     }
 
     private String formatDuration(Duration duration) {

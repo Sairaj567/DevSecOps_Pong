@@ -9,11 +9,11 @@
     <!-- ==================== PROJECT INFO ==================== -->
     <groupId>com.devsecops</groupId>
     <artifactId>pong-game</artifactId>
-    <version>2.0.0-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     
     <name>Pong Game</name>
-    <description>DevSecOps Pipeline Demo - Two-Player Pong with Real-Time Metrics</description>
+    <description>DevSecOps Pipeline Demo - Online Multiplayer Pong with Real-Time Metrics</description>
     
     <!-- ==================== SPRING BOOT PARENT ==================== -->
     <parent>
@@ -80,6 +80,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        
+        <!-- WebSocket for Real-time Multiplayer -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
     </dependencies>
     
