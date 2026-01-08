@@ -8,7 +8,7 @@ pipeline {
     
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
-        DOCKER_IMAGE = 'your-dockerhub-id/pong-game'
+        DOCKER_IMAGE = 'sairaj567/pong-game'
         DOCKER_TAG = 'latest'
     }
     
@@ -96,7 +96,7 @@ pipeline {
         stage('Docker Build') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'docker-cred', url: '') {
                         sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                     }
                 }
@@ -112,7 +112,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                    withDockerRegistry(credentialsId: 'docker-cred', url: '') {
                         sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
                     }
                 }
@@ -122,12 +122,10 @@ pipeline {
         stage('Deploy to Container') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
-                        sh '''
-                            docker stop pong-game-container || true
-                            docker rm pong-game-container || true
-                            docker run -d --name pong-game-container -p 8080:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        '''
+                    withDockerRegistry(credentialsId: 'docker-cred', url: '') {
+                        sh "docker stop pong-game-container || true"
+                        sh "docker rm pong-game-container || true"
+                        sh "docker run -d --name pong-game-container -p 8080:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}"
                     }
                 }
             }
