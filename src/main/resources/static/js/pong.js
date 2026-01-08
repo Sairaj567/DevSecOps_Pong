@@ -628,7 +628,12 @@ function updateMyPaddle() {
 function startPingLoop() {
     setInterval(() => {
         if (socket && socket.readyState === WebSocket.OPEN) {
-            sendMessage({ type: 'ping', timestamp: Date.now() });
+            // Send our last measured RTT so server can share it with opponent
+            sendMessage({ 
+                type: 'ping', 
+                timestamp: Date.now(),
+                rtt: latencyState.myLatency || 0
+            });
         }
     }, CONFIG.PING_INTERVAL);
 }

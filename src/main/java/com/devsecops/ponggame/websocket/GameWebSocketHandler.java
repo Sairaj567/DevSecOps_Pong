@@ -221,15 +221,18 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         long clientTimestamp = json.get("timestamp").asLong();
         long serverTimestamp = System.currentTimeMillis();
         
+        // Get client-measured RTT if provided (from previous pong response)
+        long clientRtt = json.has("rtt") ? json.get("rtt").asLong() : 0;
+        
         GameRoom room = gameRoomService.getRoomBySession(session.getId());
         if (room != null) {
             int playerNumber = room.getPlayerNumber(session.getId());
-            long latency = serverTimestamp - clientTimestamp;
             
+            // Store the client's measured RTT
             if (playerNumber == 1) {
-                room.setPlayer1Latency(latency);
+                room.setPlayer1Latency(clientRtt);
             } else {
-                room.setPlayer2Latency(latency);
+                room.setPlayer2Latency(clientRtt);
             }
         }
         
