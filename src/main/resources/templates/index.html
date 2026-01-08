@@ -3,51 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DevSecOps Pong Game</title>
+    <title>DevSecOps Pong Game - Two Player</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-    <div class="container">
+    <div class="main-container">
         <header>
             <h1>🎮 DevSecOps Pong</h1>
-            <p class="subtitle">Built with Jenkins CI/CD Pipeline</p>
+            <p class="subtitle">Two-Player Mode | Built with Jenkins CI/CD Pipeline</p>
         </header>
         
-        <div class="game-container">
-            <div class="score-board">
-                <div class="score player1">
-                    <span class="label">Player 1</span>
-                    <span id="player1-score" class="value">0</span>
-                </div>
-                <div class="score player2">
-                    <span class="label">CPU</span>
-                    <span id="player2-score" class="value">0</span>
+        <div class="layout-container">
+            <!-- Game Section -->
+            <div class="game-section">
+                <div class="game-container">
+                    <div class="score-board">
+                        <div class="score player1">
+                            <span class="label">Player 1 <kbd>W</kbd><kbd>S</kbd></span>
+                            <span id="player1-score" class="value">0</span>
+                        </div>
+                        <div class="vs-divider">VS</div>
+                        <div class="score player2">
+                            <span class="label">Player 2 <kbd>↑</kbd><kbd>↓</kbd></span>
+                            <span id="player2-score" class="value">0</span>
+                        </div>
+                    </div>
+                    
+                    <canvas id="pongCanvas" width="800" height="450"></canvas>
+                    
+                    <div class="controls">
+                        <button id="startBtn" class="btn btn-primary">Start Game</button>
+                        <button id="pauseBtn" class="btn btn-secondary" disabled>Pause</button>
+                        <button id="resetBtn" class="btn btn-danger">Reset</button>
+                    </div>
+                    
+                    <div class="instructions">
+                        <div class="player-controls">
+                            <div class="p1-controls">
+                                <span class="player-label p1">Player 1 (Blue)</span>
+                                <kbd>W</kbd> Up | <kbd>S</kbd> Down
+                            </div>
+                            <div class="p2-controls">
+                                <span class="player-label p2">Player 2 (Red)</span>
+                                <kbd>↑</kbd> Up | <kbd>↓</kbd> Down
+                            </div>
+                        </div>
+                        <p class="win-msg">🏆 First to <strong>10 points</strong> wins!</p>
+                    </div>
                 </div>
             </div>
             
-            <canvas id="pongCanvas" width="800" height="500"></canvas>
-            
-            <div class="controls">
-                <button id="startBtn" class="btn btn-primary">Start Game</button>
-                <button id="pauseBtn" class="btn btn-secondary" disabled>Pause</button>
-                <button id="resetBtn" class="btn btn-danger">Reset</button>
-            </div>
-            
-            <div class="instructions">
-                <p>🎯 <strong>Controls:</strong> Use <kbd>W</kbd> / <kbd>S</kbd> or <kbd>↑</kbd> / <kbd>↓</kbd> to move your paddle</p>
-                <p>🏆 First to <strong>10 points</strong> wins!</p>
+            <!-- DevOps Metrics Dashboard -->
+            <div class="metrics-section">
+                <div class="metrics-container">
+                    <h2>📊 DevOps Metrics</h2>
+                    <p class="metrics-subtitle">Real-time Server Statistics</p>
+                    
+                    <!-- Latency Card -->
+                    <div class="metric-card latency-card">
+                        <div class="metric-icon">⚡</div>
+                        <div class="metric-content">
+                            <span class="metric-label">API Latency</span>
+                            <span id="latency-value" class="metric-value">--</span>
+                            <span class="metric-unit">ms</span>
+                        </div>
+                        <div id="latency-indicator" class="status-indicator"></div>
+                    </div>
+                    
+                    <!-- Memory Usage Card -->
+                    <div class="metric-card memory-card">
+                        <div class="metric-icon">💾</div>
+                        <div class="metric-content">
+                            <span class="metric-label">Memory Usage</span>
+                            <div class="progress-bar">
+                                <div id="memory-bar" class="progress-fill"></div>
+                            </div>
+                            <span id="memory-value" class="metric-detail">-- / -- MB</span>
+                        </div>
+                        <span id="memory-percent" class="metric-percent">--%</span>
+                    </div>
+                    
+                    <!-- CPU Load Card -->
+                    <div class="metric-card cpu-card">
+                        <div class="metric-icon">🖥️</div>
+                        <div class="metric-content">
+                            <span class="metric-label">System Load</span>
+                            <span id="cpu-value" class="metric-value">--</span>
+                            <span id="cpu-cores" class="metric-detail">-- cores</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Uptime Card -->
+                    <div class="metric-card uptime-card">
+                        <div class="metric-icon">⏱️</div>
+                        <div class="metric-content">
+                            <span class="metric-label">Server Uptime</span>
+                            <span id="uptime-value" class="metric-value">--</span>
+                        </div>
+                        <div class="status-badge online">ONLINE</div>
+                    </div>
+                    
+                    <!-- Requests Card -->
+                    <div class="metric-card requests-card">
+                        <div class="metric-icon">📈</div>
+                        <div class="metric-content">
+                            <span class="metric-label">Total Requests</span>
+                            <span id="requests-value" class="metric-value">--</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Threads Card -->
+                    <div class="metric-card threads-card">
+                        <div class="metric-icon">🧵</div>
+                        <div class="metric-content">
+                            <span class="metric-label">Active Threads</span>
+                            <span id="threads-value" class="metric-value">--</span>
+                            <span id="threads-peak" class="metric-detail">Peak: --</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Game Stats Card -->
+                    <div class="metric-card games-card">
+                        <div class="metric-icon">🎯</div>
+                        <div class="metric-content">
+                            <span class="metric-label">Games Played</span>
+                            <span id="games-value" class="metric-value">0</span>
+                            <span id="games-wins" class="metric-detail">P1: 0 | P2: 0</span>
+                        </div>
+                    </div>
+                    
+                    <!-- System Info -->
+                    <div class="system-info">
+                        <div class="info-row">
+                            <span class="info-label">OS:</span>
+                            <span id="os-name" class="info-value">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Arch:</span>
+                            <span id="os-arch" class="info-value">--</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">JVM:</span>
+                            <span id="jvm-version" class="info-value">--</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
         <footer>
             <div class="pipeline-info">
-                <span class="badge">Spring Boot</span>
+                <span class="badge">Spring Boot 3.2</span>
                 <span class="badge">Docker</span>
                 <span class="badge">Jenkins</span>
                 <span class="badge">SonarQube</span>
                 <span class="badge">Trivy</span>
+                <span class="badge">Nexus</span>
+                <span class="badge">Prometheus</span>
             </div>
-            <p>&copy; 2024 DevSecOps Pipeline Demo</p>
+            <p>&copy; 2026 DevSecOps Pipeline Demo | Two-Player Pong v2.0</p>
         </footer>
     </div>
     
