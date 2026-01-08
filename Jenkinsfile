@@ -125,7 +125,7 @@ pipeline {
                     withDockerRegistry(credentialsId: 'docker-cred', url: '') {
                         sh "docker stop pong-game-container || true"
                         sh "docker rm pong-game-container || true"
-                        sh "docker run -d --name pong-game-container -p 8080:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                        sh "docker run -d --name pong-game-container -p 8085:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}"
                     }
                 }
             }
