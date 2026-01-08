@@ -68,8 +68,26 @@ pipeline {
         
         stage('Publish to Nexus') {
             steps {
-                withMaven(globalMavenSettingsConfig: 'global-maven-settings', jdk: 'jdk17', maven: 'maven3') {
-                    sh 'mvn deploy -DskipTests'
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'nexus-cred', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
+                        // Create settings.xml with credentials
+                        writeFile file: 'settings.xml', text: """<?xml version="1.0" encoding="UTF-8"?>
+<settings>
+    <servers>
+        <server>
+            <id>nexus-releases</id>
+            <username>${NEXUS_USERNAME}</username>
+            <password>${NEXUS_PASSWORD}</password>
+        </server>
+        <server>
+            <id>nexus-snapshots</id>
+            <username>${NEXUS_USERNAME}</username>
+            <password>${NEXUS_PASSWORD}</password>
+        </server>
+    </servers>
+</settings>"""
+                        sh 'mvn deploy -DskipTests -s settings.xml'
+                    }
                 }
             }
         }
