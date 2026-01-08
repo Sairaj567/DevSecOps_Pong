@@ -81,6 +81,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         
         GameRoom room = gameRoomService.createRoom();
         room.addPlayer(session.getId(), playerName);
+        gameRoomService.registerSession(session.getId(), room.getRoomCode());
         
         ObjectNode response = objectMapper.createObjectNode();
         response.put("type", "room_created");
@@ -109,6 +110,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
         
         int playerNumber = room.addPlayer(session.getId(), playerName);
+        gameRoomService.registerSession(session.getId(), roomCode);
         
         // Send confirmation to joining player
         ObjectNode response = objectMapper.createObjectNode();

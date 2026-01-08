@@ -79,6 +79,13 @@ public class GameRoomService {
     }
 
     /**
+     * Register session to room mapping
+     */
+    public void registerSession(String sessionId, String roomCode) {
+        sessionToRoom.put(sessionId, roomCode.toUpperCase());
+    }
+
+    /**
      * Remove player from room
      */
     public void leaveRoom(String sessionId) {
