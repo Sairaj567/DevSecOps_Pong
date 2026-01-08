@@ -172,6 +172,8 @@ function handleGameStarted(data) {
     
     if (gameState.isHost) {
         gameLoop();
+    } else {
+        nonHostLoop();
     }
 }
 
@@ -590,12 +592,35 @@ function gameLoop() {
     }
 }
 
-// Non-host also needs to render
-setInterval(() => {
-    if (gameState.isRunning && !gameState.isHost) {
+// Non-host also needs to run update (for paddle input) and render
+function nonHostLoop() {
+    if (gameState.isRunning && !gameState.isPaused && !gameState.isHost) {
+        updateMyPaddle();
         draw();
+        requestAnimationFrame(nonHostLoop);
     }
-}, 16);
+}
+
+// Separate paddle update for non-host to avoid ball physics
+function updateMyPaddle() {
+    const myPaddle = gameState.playerNumber === 1 ? player1 : player2;
+    let moved = false;
+    
+    if (keys.w || keys.W || keys.ArrowUp) {
+        myPaddle.y -= CONFIG.PADDLE_SPEED;
+        moved = true;
+    }
+    if (keys.s || keys.S || keys.ArrowDown) {
+        myPaddle.y += CONFIG.PADDLE_SPEED;
+        moved = true;
+    }
+    
+    myPaddle.y = Math.max(0, Math.min(canvas.height - myPaddle.height, myPaddle.y));
+    
+    if (moved) {
+        sendMessage({ type: 'paddle_move', paddleY: myPaddle.y });
+    }
+}
 
 // ============================================
 // Latency & Metrics
