@@ -89,14 +89,14 @@
         <snapshotRepository>
             <id>nexus-snapshots</id>
             <name>Nexus Snapshot Repository</name>
-            <url>http://your-nexus-server:8081/repository/maven-snapshots/</url>
+            <url>http://140.245.23.142:8081/repository/maven-snapshots/</url>
         </snapshotRepository>
         
         <!-- Release Repository -->
         <repository>
             <id>nexus-releases</id>
             <name>Nexus Release Repository</name>
-            <url>http://your-nexus-server:8081/repository/maven-releases/</url>
+            <url>http://140.245.23.142:8081/repository/maven-releases/</url>
         </repository>
     </distributionManagement>
     
