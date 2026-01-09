@@ -1,0 +1,42 @@
+# Prometheus Configuration for DevSecOps Pong
+# Scrapes game metrics from Spring Boot Actuator
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Load alert rules
+rule_files:
+  - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Pong Game Application
+  - job_name: 'pong-game'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['140.245.23.142:8085']
+        labels:
+          application: 'pong-game'
+          environment: 'production'
+    # Handle if game is temporarily down
+    scrape_timeout: 10s
+
+  # Spring Boot Actuator Health
+  - job_name: 'pong-health'
+    metrics_path: '/actuator/health'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['140.245.23.142:8085']

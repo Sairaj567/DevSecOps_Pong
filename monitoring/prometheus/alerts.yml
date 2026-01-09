@@ -1,0 +1,54 @@
+# Prometheus Alert Rules for Pong Game
+
+groups:
+  - name: pong-alerts
+    rules:
+      # Alert when no active rooms for 10 minutes during peak hours
+      - alert: NoActiveGames
+        expr: pong_active_games == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "No active Pong games"
+          description: "There have been no active games for the last 10 minutes."
+
+      # Alert when player count drops to zero
+      - alert: NoPlayersConnected
+        expr: pong_connected_players == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No players connected"
+          description: "No players have been connected for 5 minutes."
+
+      # Alert on high memory usage
+      - alert: HighMemoryUsage
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM heap memory usage"
+          description: "JVM heap memory usage is above 85% for 5 minutes."
+
+      # Alert when application is down
+      - alert: ApplicationDown
+        expr: up{job="pong-game"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pong Game application is down"
+          description: "The Pong Game application has been unreachable for 1 minute."
+
+      # Alert on high game completion rate (spam detection)
+      - alert: UnusualGameActivity
+        expr: rate(pong_games_completed_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusual game activity detected"
+          description: "More than 10 games completed per minute - possible automated activity."
